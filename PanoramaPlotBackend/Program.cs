@@ -89,16 +89,7 @@ app.MapGet("/movies/{page:int?}", async context =>
             
 
 
-            string jsonSerialized = JsonConvert.SerializeObject(
-            new { 
-                    data = movies, 
-            url_path = new {
-                previous = UrlPrevious, 
-                next = UrlNext}
-                }
-                );
-
-
+            string jsonSerialized = JsonConvert.SerializeObject(new { data = movies, url_path = new { previous = UrlPrevious, next = UrlNext }});
 
             context.Response.Headers.Add("Content-Type", "application/json");
             await context.Response.WriteAsync(jsonSerialized);
