@@ -53,7 +53,7 @@ app.MapGet("/movies/{page:int?}", async context =>
 
             JArray resultsArray = jsonObject.results;
 
-            List<string> titles = new List<string>();
+            List<Movie> movies = new List<Movie>();
 
             foreach (JToken result in resultsArray)
             {
@@ -73,7 +73,7 @@ app.MapGet("/movies/{page:int?}", async context =>
                     result["vote_count"]?.ToString()
                 );
 
-                titles.Add(movie.ToString());
+                movies.Add(movie);
             }
             //------------------------------------------Above to get the data and manipulate it. Under to create the url for getting new data
             string UrlNext = "";
@@ -88,7 +88,14 @@ app.MapGet("/movies/{page:int?}", async context =>
             
 
 
-            string jsonSerialized = JsonConvert.SerializeObject(new { data = titles, url_path = new {previous = UrlPrevious, next = UrlNext}});
+            string jsonSerialized = JsonConvert.SerializeObject(
+            new { 
+                    data = movies, 
+            url_path = new {
+                previous = UrlPrevious, 
+                next = UrlNext}
+                }
+                );
 
 
 
