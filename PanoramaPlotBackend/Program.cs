@@ -66,7 +66,7 @@ app.MapGet("/movies/{page:int?}", async context =>
                     result["original_title"]?.ToString(),
                     result["overview"]?.ToString(), 
                     result["popularity"]?.ToString(), 
-                    "http://image.tmdb.org/t/p/w500/" + result["poster_path"]?.ToString(), 
+                    result["poster_path"]?.ToString(), 
                     result["release_date"]?.ToString(),
                     result["title"]?.ToString(), 
                     result["vote_average"]?.ToString(), 
