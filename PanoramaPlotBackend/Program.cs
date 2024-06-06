@@ -21,7 +21,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 Env.Load();
 
-
+app.UseCors();
 
 
 
