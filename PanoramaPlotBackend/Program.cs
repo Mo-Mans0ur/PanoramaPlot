@@ -43,6 +43,7 @@ app.MapGet("/movies/{page:int?}", async context =>
         client.DefaultRequestHeaders.Add("accept", "application/json");
         client.DefaultRequestHeaders.Add("Authorization", "Bearer " + api_token);
         HttpResponseMessage response = await client.GetAsync(apiURL);
+        Console.WriteLine("Response: " + response);
         if (response.IsSuccessStatusCode)
         {
             // Read the JSON response as a string
