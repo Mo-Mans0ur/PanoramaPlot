@@ -66,7 +66,7 @@ app.MapGet("/movies/{page:int?}", async context =>
                     result["original_title"]?.ToString(),
                     result["overview"]?.ToString(), 
                     result["popularity"]?.ToString(), 
-                    result["poster_path"]?.ToString(), 
+                    "http://image.tmdb.org/t/p/w500/" + result["poster_path"]?.ToString(), 
                     result["release_date"]?.ToString(),
                     result["title"]?.ToString(), 
                     result["vote_average"]?.ToString(), 
@@ -88,16 +88,7 @@ app.MapGet("/movies/{page:int?}", async context =>
             
 
 
-            string jsonSerialized = JsonConvert.SerializeObject(
-            new { 
-                    data = movies, 
-            url_path = new {
-                previous = UrlPrevious, 
-                next = UrlNext}
-                }
-                );
-
-
+            string jsonSerialized = JsonConvert.SerializeObject(new { data = movies, url_path = new { previous = UrlPrevious, next = UrlNext }});
 
             context.Response.Headers.Add("Content-Type", "application/json");
             await context.Response.WriteAsync(jsonSerialized);
