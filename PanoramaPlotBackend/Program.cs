@@ -85,20 +85,22 @@ app.MapPost("/login", async context => {
                     
                     // Return token
                     context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync(JsonConvert.SerializeObject(new { token }));
+                    await context.Response.WriteAsync(JsonConvert.SerializeObject(new { Token = token }));
                     return;
                 }
             }
             
             // User not found or password does not match
             context.Response.StatusCode = 400;
-            await context.Response.WriteAsync("Invalid username or password");
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Invalid username or password"});
         }
         catch (Exception ex)
         {
             // Handle database errors
             context.Response.StatusCode = 400;
-            await context.Response.WriteAsync("Failed to login: " + ex.Message);
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to login: " + ex.Message });
         }
     }
 }).AllowAnonymous();
@@ -113,6 +115,14 @@ app.MapPost("/register", async context => {
 
         try
         {
+            var existingUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (existingUser != null)
+            {
+                context.Response.StatusCode = 409; // Conflict
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new { message = "Username already taken" });                return;
+            }
+
             var user = new User
             {
                 Username = username,
@@ -121,12 +131,14 @@ app.MapPost("/register", async context => {
             dbContext.Users.Add(user);
             await dbContext.SaveChangesAsync();
 
-            await context.Response.WriteAsync("User registered successfully");
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "User registered successfully" });
         }
         catch (Exception ex)
         {
             context.Response.StatusCode = 400;
-            await context.Response.WriteAsync("Failed to register user: " + ex.Message);
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to register user: " + ex.Message });
         }
 
     }
@@ -203,8 +215,9 @@ app.MapGet("/movies/{page:int?}", async context =>
         }
         else
         {
-            // Write error message to the response stream
-            await context.Response.WriteAsync("Failed to fetch data.");
+            context.Response.StatusCode = 400;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to fetch data."});
         }
     }
 });
@@ -282,8 +295,9 @@ app.MapPost("movies/search/{query}/{page:int?}", async context =>
         }
         else
         {
-            // Write error message to the response stream
-            await context.Response.WriteAsync("Failed to fetch data.");
+            context.Response.StatusCode = 400;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to fetch data."});
         }
     }
 
