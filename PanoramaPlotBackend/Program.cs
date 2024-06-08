@@ -1,13 +1,21 @@
 using DotNetEnv;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
-
 using Models;
+using Services;
+using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(
@@ -18,14 +26,113 @@ builder.Services.AddCors(options =>
                    .AllowAnyMethod();
         });
 });
+
+builder.Services.AddDbContext<ApplicationDBContext>(options =>
+    options.UseMySql(
+        Environment.GetEnvironmentVariable("CONNECTION_STRING"),
+        new MySqlServerVersion(new Version(8, 0, 28))
+    ));
+
+builder.Services.AddAuthentication(x => {
+    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(x => {
+    x.TokenValidationParameters = new TokenValidationParameters{
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey
+            (Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = false,
+        ValidateIssuerSigningKey = true
+    };
+});
+
+builder.Services.AddAuthorization();
+
+
 var app = builder.Build();
-Env.Load();
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 
 
-app.MapGet("/", () => "Hello World!");
+app.MapGet("/", () => "Hello World!").AllowAnonymous();
+
+app.MapPost("/login", async context => {
+    var requestBody = await context.Request.ReadFromJsonAsync<User>();
+    string username = requestBody.Username;
+    string password = requestBody.Password;
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDBContext>();
+
+        try
+        {
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user != null)
+            {
+                bool passwordMatch = BCrypt.Net.BCrypt.Verify(password, user.Password);
+                if (passwordMatch)
+                {
+                    // Generate JWT token
+                    var token = GenerateJwtToken(user, builder.Configuration);
+                    
+                    // Return token
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsync(JsonConvert.SerializeObject(new { token }));
+                    return;
+                }
+            }
+            
+            // User not found or password does not match
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("Invalid username or password");
+        }
+        catch (Exception ex)
+        {
+            // Handle database errors
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("Failed to login: " + ex.Message);
+        }
+    }
+}).AllowAnonymous();
+
+app.MapPost("/register", async context => {
+    var requestBody = await context.Request.ReadFromJsonAsync<User>();
+    string username = requestBody.Username;
+    string password = BCrypt.Net.BCrypt.HashPassword(requestBody.Password, BCrypt.Net.BCrypt.GenerateSalt());
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDBContext>();
+
+        try
+        {
+            var user = new User
+            {
+                Username = username,
+                Password = password
+            };
+            dbContext.Users.Add(user);
+            await dbContext.SaveChangesAsync();
+
+            await context.Response.WriteAsync("User registered successfully");
+        }
+        catch (Exception ex)
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("Failed to register user: " + ex.Message);
+        }
+
+    }
+}).AllowAnonymous();
+
+app.MapGet("/secret", () => "Secret!").RequireAuthorization();
 
 app.MapGet("/movies/{page:int?}", async context =>
 {
@@ -103,3 +210,25 @@ app.MapGet("/movies/{page:int?}", async context =>
 
 
 app.Run();
+
+string GenerateJwtToken(User user, IConfiguration configuration)
+{
+    var tokenHandler = new JwtSecurityTokenHandler();
+    var key = Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!);
+
+    var tokenDescriptor = new SecurityTokenDescriptor
+    {
+        Subject = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+        }),
+        Expires = DateTime.UtcNow.AddHours(1),
+        Issuer = configuration["Jwt:Issuer"],
+        Audience = configuration["Jwt:Audience"],
+        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+    };
+
+    var token = tokenHandler.CreateToken(tokenDescriptor);
+    return tokenHandler.WriteToken(token);
+}
