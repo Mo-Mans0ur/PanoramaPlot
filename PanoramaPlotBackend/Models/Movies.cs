@@ -21,6 +21,7 @@ namespace Models
         public double? VoteAverage { get; set; }
         public int? VoteCount { get; set; }
 
+        public Movie() { }
         public Movie(string? adult, string? backdropPath, string? genreIds, string? id, string? originalLanguage, string? originalTitle,
                      string? overview, string? popularity, string? posterPath, string? releaseDate, string? title, string? voteAverage, string? voteCount)
         {

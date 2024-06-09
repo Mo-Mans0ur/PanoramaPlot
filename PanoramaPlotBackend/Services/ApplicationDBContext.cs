@@ -12,7 +12,7 @@ namespace Services
 
         public DbSet<User> Users { get; set; }
         public DbSet<Favorite> Favorites { get; set; }
-
+        public DbSet<Movie> Movies { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()
@@ -28,6 +28,11 @@ namespace Services
                 .HasOne(f => f.User)
                 .WithMany(u => u.Favorites)
                 .HasForeignKey(f => f.UserId);
+            
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.Movie)
+                .WithMany()
+                .HasForeignKey(f => f.MovieId);
         }   
     }
 }

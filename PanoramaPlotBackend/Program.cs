@@ -144,7 +144,16 @@ app.MapPost("/register", async context => {
     }
 }).AllowAnonymous();
 
-app.MapGet("/secret", () => "Secret!").RequireAuthorization();
+app.MapGet("/secret", async (HttpContext context) =>
+{
+    var user = context.User;
+
+    var username = user.FindFirst(ClaimTypes.Name)!.Value;
+
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new { User = username });
+    return;
+}).RequireAuthorization();
 
 app.MapGet("/movies/{page:int?}", async context =>
 {
@@ -229,13 +238,13 @@ app.MapPost("movies/search/{query}/{page:int?}", async context =>
     string api_key = Environment.GetEnvironmentVariable("TMDB_KEY");
     string api_token = Environment.GetEnvironmentVariable("TMDB_READ_ACCESS_TOKEN");
     
-    RequestQuery = Uri.EscapeDataString(RequestQuery); //Needed to format the string to HexEscape for IMDB api
+    string RequestQueryEncoded = Uri.EscapeDataString(RequestQuery); //Needed to format the string to HexEscape for IMDB api
     
-    if( string.IsNullOrEmpty(RequestQuery) ){
+    if( string.IsNullOrEmpty(RequestQueryEncoded) ){
         context.Response.StatusCode = 400;
         await context.Response.WriteAsync("Query parameter is required.");
     }
-    string apiURL = $"https://api.themoviedb.org/3/search/movie?query={RequestQuery}&include_adult=false&language=en-US&page={RequestPage}";
+    string apiURL = $"https://api.themoviedb.org/3/search/movie?query={RequestQueryEncoded}&include_adult=false&language=en-US&page={RequestPage}";
     
     using (HttpClient client = new HttpClient())
     {
@@ -280,10 +289,10 @@ app.MapPost("movies/search/{query}/{page:int?}", async context =>
             string UrlPrevious = "";
             
             if(int.Parse(RequestPage) >= 1 && int.Parse(RequestPage) < 500){
-                UrlNext = Environment.GetEnvironmentVariable("URL")+$"movies/{int.Parse(RequestPage)+1}";
+                UrlNext = Environment.GetEnvironmentVariable("URL")+$"movies/search/{RequestQuery}/{int.Parse(RequestPage)+1}";
             }
             if(int.Parse(RequestPage) <= 500 && int.Parse(RequestPage) > 1){
-                UrlPrevious = Environment.GetEnvironmentVariable("URL")+$"movies/{int.Parse(RequestPage)-1}";
+                UrlPrevious = Environment.GetEnvironmentVariable("URL")+$"movies/search/{RequestQuery}/{int.Parse(RequestPage)-1}";
             }
             
 
@@ -302,6 +311,19 @@ app.MapPost("movies/search/{query}/{page:int?}", async context =>
     }
 
 });
+
+// app.MapGet("", async context => {
+//     //Get users movies from the id's, look at foreign key unions
+// });
+
+app.MapPost("", async (HttpContext context) => {
+    //Create the movie in the movie table if it dosen't exist then add it's id to the users favorites.
+    var user = context.User;
+    var username = user.FindFirst(ClaimTypes.Name)!.Value;
+    
+
+});
+
 
 app.Run();
 
