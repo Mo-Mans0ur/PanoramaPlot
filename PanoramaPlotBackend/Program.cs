@@ -421,7 +421,14 @@ app.MapPost("/movies/favorite", async (HttpContext context) => {
 
 });
 
+app.MapGet("/test", async context => {
+    string api_key = Environment.GetEnvironmentVariable("TMDB_KEY");
+    string api_token = Environment.GetEnvironmentVariable("TMDB_READ_ACCESS_TOKEN");
 
+    context.Response.StatusCode = 200;
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new { message = $"{api_key}\n{api_token}"});
+});
 app.Run();
 
 string GenerateJwtToken(User user, IConfiguration configuration)
