@@ -264,9 +264,10 @@ app.MapPost("/movies/search/{query}/{page:int?}", async context =>
 
             foreach (JToken result in resultsArray)
             {
+                string backdropPath = string.IsNullOrEmpty(result["backdrop_path"]?.ToString()) ? "defaultBackdropPath" : result["backdrop_path"].ToString();
                 Movie movie = new Movie(
                     result["adult"]?.ToString(), 
-                    string.IsNullOrEmpty(result["backdrop_path"]?.ToString()) ? null : result["backdrop_path"]?.ToString(),
+                    backdropPath, 
                     result["genre_ids"]?.ToString(), 
                     result["id"]?.ToString(),
                     result["original_language"]?.ToString(), 
