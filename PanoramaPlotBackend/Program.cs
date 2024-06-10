@@ -61,8 +61,6 @@ app.UseAuthorization();
 
 
 
-app.MapGet("/", () => "Hello World!").AllowAnonymous();
-
 app.MapPost("/login", async context => {
     var requestBody = await context.Request.ReadFromJsonAsync<User>();
     string username = requestBody.Username;
@@ -100,7 +98,7 @@ app.MapPost("/login", async context => {
             // Handle database errors
             context.Response.StatusCode = 400;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new { message = "Failed to login: " + ex.Message });
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to connect to database" });
         }
     }
 }).AllowAnonymous();
@@ -231,7 +229,7 @@ app.MapGet("/movies/{page:int?}", async context =>
     }
 });
 
-app.MapPost("movies/search/{query}/{page:int?}", async context => 
+app.MapPost("/movies/search/{query}/{page:int?}", async context => 
 {
     string RequestPage = context.Request.RouteValues["page"]?.ToString() ?? "1";
     string RequestQuery = context.Request.RouteValues["query"]?.ToString();
@@ -268,7 +266,7 @@ app.MapPost("movies/search/{query}/{page:int?}", async context =>
             {
                 Movie movie = new Movie(
                     result["adult"]?.ToString(), 
-                    result["backdrop_path"]?.ToString(), 
+                    string.IsNullOrEmpty(result["backdrop_path"]?.ToString()) ? null : result["backdrop_path"]?.ToString(),
                     result["genre_ids"]?.ToString(), 
                     result["id"]?.ToString(),
                     result["original_language"]?.ToString(), 
@@ -312,15 +310,113 @@ app.MapPost("movies/search/{query}/{page:int?}", async context =>
 
 });
 
-// app.MapGet("", async context => {
-//     //Get users movies from the id's, look at foreign key unions
-// });
+app.MapGet("/movies/favorite/{page:int?}", async (HttpContext context) => {
+    //Get users movies from the id's, look at foreign key unions
+    var user = context.User;
+    var userId= user.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+    var username = user.FindFirst(ClaimTypes.Name)!.Value;
+    string RequestPage = context.Request.RouteValues["page"]?.ToString() ?? "1";
 
-app.MapPost("", async (HttpContext context) => {
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDBContext>();
+
+        try
+        {
+            var userFavorites = await dbContext.Favorites
+                .Where(f => f.UserId == int.Parse(userId))
+                .Include(f => f.Movie) // Assuming there is a navigation property named 'Movie' in the Favorite entity
+                .Skip((int.Parse(RequestPage) - 1) * 20)
+                .Take(20)
+                .ToListAsync();
+
+
+            string UrlNext = "";
+            string UrlPrevious = "";
+            
+            if(int.Parse(RequestPage) >= 1 && int.Parse(RequestPage) < 500){
+                UrlNext = Environment.GetEnvironmentVariable("URL")+$"movies/search/{int.Parse(RequestPage)+1}";
+            }
+            if(int.Parse(RequestPage) <= 500 && int.Parse(RequestPage) > 1){
+                UrlPrevious = Environment.GetEnvironmentVariable("URL")+$"movies/search/{int.Parse(RequestPage)-1}";
+            }
+
+            string jsonSerialized = JsonConvert.SerializeObject(new { data = userFavorites, url_path = new { previous = UrlPrevious, next = UrlNext }});
+
+            context.Response.Headers.Add("Content-Type", "application/json");
+            await context.Response.WriteAsync(jsonSerialized);
+        }
+        catch (Exception ex)
+        {
+            // Handle database errors
+            context.Response.StatusCode = 400;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to connect to database" });
+        }
+    }
+
+
+});
+
+app.MapPost("/movies/favorite", async (HttpContext context) => {
     //Create the movie in the movie table if it dosen't exist then add it's id to the users favorites.
     var user = context.User;
+    var userId= user.FindFirst(ClaimTypes.NameIdentifier)!.Value;
     var username = user.FindFirst(ClaimTypes.Name)!.Value;
-    
+    var requestBody = await context.Request.ReadFromJsonAsync<Movie>();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDBContext>();
+
+        try
+        {
+            var existingMovie = await dbContext.Movies.FirstOrDefaultAsync(u => u.Id == requestBody!.Id);
+            Console.WriteLine("Existing movie: "+existingMovie);
+            Console.WriteLine($"{userId} -> {requestBody.Id}");
+
+            if (existingMovie == null)
+            {
+                //add movie to table if it dosen't exist
+                Console.WriteLine("Movie added to database");
+                Movie newMovie = new Movie();
+                newMovie.Adult = requestBody!.Adult;
+                newMovie.BackdropPath = requestBody!.BackdropPath;
+                newMovie.GenreIds = requestBody!.GenreIds;
+                newMovie.Id = requestBody!.Id;
+                newMovie.OriginalLanguage = requestBody!.OriginalLanguage;
+                newMovie.OriginalTitle = requestBody!.OriginalTitle;
+                newMovie.Overview = requestBody!.Overview;
+                newMovie.Popularity = requestBody!.Popularity;
+                newMovie.PosterPath = requestBody!.PosterPath;
+                newMovie.ReleaseDate = requestBody!.ReleaseDate;
+                newMovie.Title = requestBody!.Title;
+                newMovie.VoteAverage = requestBody!.VoteAverage;
+                newMovie.VoteCount = requestBody!.VoteCount;
+
+
+                Console.WriteLine(newMovie);
+                dbContext.Movies.Add(newMovie);
+            }
+            //add the movie id to the 
+            Console.WriteLine("Movie added to users favorites");
+            
+            var newFavorite = new Favorite(int.Parse(userId), (int)requestBody.Id);
+            Console.WriteLine(newFavorite);
+            dbContext.Favorites.Add(newFavorite);
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handle database errors
+            context.Response.StatusCode = 400;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Failed to connect to database" });
+        }
+    }
+
+    //Console.WriteLine(requestBody!.ToStringDefault());
+
 
 });
 

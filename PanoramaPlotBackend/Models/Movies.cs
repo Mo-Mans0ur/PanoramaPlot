@@ -45,10 +45,30 @@ namespace Models
             VoteCount = int.TryParse(voteCount, out int voteCountValue) ? voteCountValue : (int?)null;
         }
 
+        
+
+
         public override string ToString()
         {
             return $"Id: {Id}, Popularity: {Popularity}, ReleaseDate: {ReleaseDate}, Title: {Title}, VoteAverage: {VoteAverage}, VoteCount: {VoteCount}";
         }
+        public string ToStringDefault()
+        {
+            string genreIds = GenreIds != null ? "[" + string.Join(",", GenreIds) + "]" : "null";
 
+            return $"\"Adult\": {Adult},\n" +
+                $"\"BackdropPath\": \"{BackdropPath}\",\n" +
+                $"\"GenreIds\": {genreIds},\n" +
+                $"\"Id\": {Id},\n" +
+                $"\"OriginalLanguage\": \"{OriginalLanguage}\",\n" +
+                $"\"OriginalTitle\": \"{OriginalTitle}\",\n" +
+                $"\"Overview\": \"{Overview}\",\n" +
+                $"\"Popularity\": {Popularity},\n" +
+                $"\"PosterPath\": \"{PosterPath}\",\n" +
+                $"\"ReleaseDate\": \"{ReleaseDate}\",\n" +
+                $"\"Title\": \"{Title}\",\n" +
+                $"\"VoteAverage\": {VoteAverage},\n" +
+                $"\"VoteCount\": {VoteCount}";
+        }
     }
 }
