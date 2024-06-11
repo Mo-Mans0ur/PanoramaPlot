@@ -229,7 +229,7 @@ app.MapGet("/movies/{page:int?}", async context =>
     }
 });
 
-app.MapPost("/movies/search/{query}/{page:int?}", async context => 
+app.MapGet("/movies/search/{query}/{page:int?}", async context => 
 {
     string RequestPage = context.Request.RouteValues["page"]?.ToString() ?? "1";
     string RequestQuery = context.Request.RouteValues["query"]?.ToString();
