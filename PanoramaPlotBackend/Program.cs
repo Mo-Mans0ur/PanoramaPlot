@@ -422,6 +422,8 @@ app.MapPost("/movies/favorite", async (HttpContext context) => {
 });
 
 app.MapGet("/test", async context => {
+
+    
     string api_key = Environment.GetEnvironmentVariable("TMDB_KEY");
     string api_token = Environment.GetEnvironmentVariable("TMDB_READ_ACCESS_TOKEN");
 
@@ -429,6 +431,30 @@ app.MapGet("/test", async context => {
     context.Response.ContentType = "application/json";
     await context.Response.WriteAsJsonAsync(new { message = $"{api_key}\n{api_token}"});
 });
+
+app.MapGet("/movie/{id:int}", async context => {
+    string RequestId = context.Request.RouteValues["id"]?.ToString();
+    string api_key = Environment.GetEnvironmentVariable("TMDB_KEY");
+    string api_token = Environment.GetEnvironmentVariable("TMDB_READ_ACCESS_TOKEN");
+
+    string apiURL = $"https://api.themoviedb.org/3/movie/{RequestId}?language=en-US";
+
+    Console.WriteLine("URL: " + apiURL);
+    using (HttpClient client = new HttpClient())
+    {
+        client.DefaultRequestHeaders.Add("accept", "application/json");
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer " + api_token);
+        HttpResponseMessage response = await client.GetAsync(apiURL);
+        Console.WriteLine("Response: " + response);
+        if (response.IsSuccessStatusCode)
+        {
+            string jsonResponse = await response.Content.ReadAsStringAsync();
+            context.Response.Headers.Add("Content-Type", "application/json");
+            await context.Response.WriteAsync(jsonResponse);
+        }
+    }
+});
+
 app.Run();
 
 string GenerateJwtToken(User user, IConfiguration configuration)
