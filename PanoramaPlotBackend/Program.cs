@@ -62,27 +62,35 @@ app.MapPost("/login", async context => {
     await UserController.HandleLogin(context, configuration, services);
 }).AllowAnonymous();
 
+
 app.MapPost("/register", async context => {
     var configuration = builder.Configuration;
     var services = app.Services;
     await UserController.HandleRegistration(context, configuration, services);
 }).AllowAnonymous();
 
+
 app.MapGet("/movies/{page:int?}", MovieController.HandleMovies).AllowAnonymous();
 
+
 app.MapGet("/movies/search/{query}/{page:int?}", MovieController.HandleMovieSearch).AllowAnonymous();
+
 
 app.MapGet("/movies/favorite/{page:int?}", async (HttpContext context) => {
     await FavMovieController.HandleFavoriteMovies(context, app.Services);
 }).RequireAuthorization();
 
+
 app.MapPost("/movies/favorite", async (HttpContext context) => {
     await FavMovieController.HandleAddFavoriteMovie(context, app.Services);
 }).RequireAuthorization();
 
+
 app.MapGet("/movie/{id:int}", async context => {
     await MovieController.HandleGetMovieById(context);
 });
+
+
 //Test Endpoint
 app.MapGet("/test", async context => {
 
@@ -95,6 +103,7 @@ app.MapGet("/test", async context => {
     await context.Response.WriteAsJsonAsync(new { message = $"{api_key}\n{api_token}"});
 });
 
+
 app.MapGet("/secret", async (HttpContext context) =>
 {
     var user = context.User;
@@ -106,4 +115,7 @@ app.MapGet("/secret", async (HttpContext context) =>
     return;
 }).RequireAuthorization();
 
+
 app.Run();
+
+public partial class Program { }
